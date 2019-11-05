@@ -1,39 +1,4 @@
-import ViolaJones.Integral as ii
-
-
-def enum(**enums):
-    return type('Enum', (), enums)
-
-
-FeatureType = enum(TWO_VERTICAL=(1, 2), TWO_HORIZONTAL=(2, 1), THREE_HORIZONTAL=(3, 1), THREE_VERTICAL=(1, 3),
-                   FOUR=(2, 2))
-FeatureTypes = [FeatureType.TWO_VERTICAL, FeatureType.TWO_HORIZONTAL, FeatureType.THREE_VERTICAL,
-                FeatureType.THREE_HORIZONTAL, FeatureType.FOUR]
-
-
-class HaarLikeFeature(object):
-    """
-    Class representing a haar-like feature.
-    """
-
-    def __init__(self, feature_type, position, width, height, threshold, polarity):
-        """
-        Creates a new haar-like feature.
-        :param feature_type: Type of new feature, see FeatureType enum, array
-        :param position: Top left corner where the feature begins (x, y)
-        :param width: Width of the feature
-        :param height: Height of the feature
-        :param threshold: Feature threshold, float
-        :param polarity: polarity of the feature -1 or 1, int
-        """
-        self.type = feature_type
-        self.top_left = position
-        self.bottom_right = (position[0] + width, position[1] + height)
-        self.width = width
-        self.height = height
-        self.threshold = threshold
-        self.polarity = polarity
-        self.weight = 1
+import objectDet.ViolaJones.Integral as ii
 
     def get_score(self, int_img):
         """
@@ -70,30 +35,19 @@ class HaarLikeFeature(object):
             third = ii.sum_region(int_img, (self.top_left[0], int(self.top_left[1] + 2 * self.height / 3)),
                                   self.bottom_right)
             score = first - second + third
-        elif self.type == FeatureType.FOUR:
-            # top left area
-            first = ii.sum_region(int_img, self.top_left,
-                                  (int(self.top_left[0] + self.width / 2), int(self.top_left[1] + self.height / 2)))
-            # top right area
-            second = ii.sum_region(int_img, (int(self.top_left[0] + self.width / 2), self.top_left[1]),
-                                   (self.bottom_right[0], int(self.top_left[1] + self.height / 2)))
-            # bottom left area
-            third = ii.sum_region(int_img, (self.top_left[0], int(self.top_left[1] + self.height / 2)),
-                                  (int(self.top_left[0] + self.width / 2), self.bottom_right[1]))
-            # bottom right area
-            fourth = ii.sum_region(int_img,
-                                   (int(self.top_left[0] + self.width / 2), int(self.top_left[1] + self.height / 2)),
-                                   self.bottom_right)
-            score = first - second - third + fourth
+        # elif self.type == FeatureType.FOUR:
+        #     # top left area
+        #     first = ii.sum_region(int_img, self.top_left,
+        #                           (int(self.top_left[0] + self.width / 2), int(self.top_left[1] + self.height / 2)))
+        #     # top right area
+        #     second = ii.sum_region(int_img, (int(self.top_left[0] + self.width / 2), self.top_left[1]),
+        #                            (self.bottom_right[0], int(self.top_left[1] + self.height / 2)))
+        #     # bottom left area
+        #     third = ii.sum_region(int_img, (self.top_left[0], int(self.top_left[1] + self.height / 2)),
+        #                           (int(self.top_left[0] + self.width / 2), self.bottom_right[1]))
+        #     # bottom right area
+        #     fourth = ii.sum_region(int_img,
+        #                            (int(self.top_left[0] + self.width / 2), int(self.top_left[1] + self.height / 2)),
+        #                            self.bottom_right)
+        #     score = first - second - third + fourth
         return score
-
-    def get_vote(self, int_img):
-        """
-        Get vote of this feature for given integral image.
-        :param int_img: Integral image array
-        :type int_img: numpy.ndarray
-        :return: 1 iff this feature votes positively, otherwise -1
-        :rtype: int
-        """
-        score = self.get_score(int_img)
-        return self.weight * (1 if score < self.polarity * self.threshold else -1)

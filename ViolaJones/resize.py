@@ -3,7 +3,7 @@ import os
 
 def load_images(path):
     '''
-        Loads the images in the provided path with jpg format
+    Loads the images in the provided path with jpg format
     :param path: directory path for images
     :return: array of images
     '''
