@@ -19,16 +19,17 @@ class RectangleRegion:
         self.width = width
         self.height = height
 
-    def compute_feature(self, ii):
+    def computeScore(self, ii):
         """
-            Computes the rectangle region value given the integral image of type name, integralImage, val (pos or neg)
+            Computes the rectangle region value (pos neg val) given the integral image of type name, integralImage, val
+        (pos or neg)
         If integral image is positive, we need to refer to csv file else, have default values for negative images.
         From csv file add xmin and ymin value to the height and width of the region to calculate it's value.
         We don't want to save the feature with this height or width because it's different for different images.
         """
+        csvFile = pd.read_csv('C:/Users/sagar/Desktop/CSC485/vjtest/face_labels.csv')
         # if val is 1, read the csv file and get min i and j to add to positions
         if ii[2] == 1:  # i is x, j is y which now becomes starting position for faces or non faces
-            csvFile = pd.read_csv('C:/Users/sagar/Desktop/CSC485/vjtest/face_labels.csv')
             row = csvFile.loc[csvFile['filename'] == ii[0]]  # go to row with image name
             i = int(row['xmin'])
             j = int(row['ymin'])

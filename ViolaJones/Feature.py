@@ -29,12 +29,12 @@ class WeakClassifier:
 
     def computeVal(self, x):
         """
-            Computes the feature value
+            Computes the feature value through pos, neg rectangles provided
         :param x: the integral image
         :return: value of the feature by summing positive and subtracting negative region
         """
-        return sum([pos.compute_feature(x) for pos in self.positive_regions]) - sum(
-            [neg.compute_feature(x) for neg in self.negative_regions])
+        return sum([pos.computeScore(x) for pos in self.positive_regions]) - sum(
+            [neg.computeScore(x) for neg in self.negative_regions])
 
 
     def __str__(self):
@@ -42,7 +42,7 @@ class WeakClassifier:
         self.threshold, self.polarity, str(self.positive_regions), str(self.negative_regions))
 
 
-def computeFeatures(self, frameSize):
+def computeFeatures(frameSize):
     """
     Builds all possible modified features in frameSize
 
@@ -53,7 +53,7 @@ def computeFeatures(self, frameSize):
 
     height, width = frameSize
     features = []
-    for w in range(1, width + 1, 5):
+    for w in range(1, width + 1, 5):    # width, height are the frame values 53
         for h in range(1, height + 1, 5):       # i, j are the positions; w, h are the width and height of feature
             i = 0
             while i + w < width:
@@ -85,7 +85,7 @@ def computeFeatures(self, frameSize):
 
                     j += 5
                 i += 5
-    print("Computed %d number of features" % (len(features)))
+    print("Computed %d features" % (len(features)))
     return np.array(features)
 
 
@@ -100,21 +100,16 @@ def apply_features(features, training_data):
     """
     X = np.zeros((len(features), len(training_data)))
     y = np.array(list(map(lambda data: data[2], training_data)))    # y is only the actual classification of images
+    error = []  # store error % of each feature
     i = 0
-    for positive_regions, negative_regions in features:
-        feature = lambda ii: sum([pos.compute_feature(ii) for pos in positive_regions]) - sum(
-            [neg.compute_feature(ii) for neg in negative_regions])
+    for positive_regions, negative_regions in features:     # apply same feature to all images, repeat for all features
+        print("Applied %d" % i)     # num of features applied
+        feature = lambda ii: sum([pos.computeScore(ii) for pos in positive_regions]) - sum(
+            [neg.computeScore(ii) for neg in negative_regions])
         # data[0] is training data, feature(data[0]) is where the training data is applied thorough map
         # provide training data to feature function above
         X[i] = list(map(lambda data: feature(data), training_data))
+        # find error % here for this feature and add to new array
         i += 1
+    # select min of errors
     return X, y
-#
-# def computeVal(self, x):
-#         """
-#             Computes the feature value
-#         :param x: the integral image
-#         :return: value of the feature by summing positive and subtracting negative region
-#         """
-#         return sum([pos.compute_feature(x) for pos in self.positive_regions]) - sum(
-#             [neg.compute_feature(x) for neg in self.negative_regions])
