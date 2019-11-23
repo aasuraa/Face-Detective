@@ -18,8 +18,8 @@ def load_images(path):
     return images
 
 # image pre-processing; resize, gray-scale
-imgPath = 'C:/Users/sagar/Desktop/VJ/Images/vjtest/negative/'                       #image path for input
-imgPathOut = 'C:/Users/sagar/Desktop/CSC485/objectDet/Images/vjtest/negative/'         #image path for output
+imgPath = 'C:/Users/sagar/Desktop/VJ/Images/test/positive/'                       #image path for input
+imgPathOut = 'C:/Users/sagar/Desktop/CSC485/faceDet/Images/test/positive/'         #image path for output
 images = load_images(imgPath)                                               #array of images
 
 if not os.path.exists(imgPathOut):
@@ -27,6 +27,6 @@ if not os.path.exists(imgPathOut):
 img_num = 1
 
 for name, i in images:
-    resized_image = cv2.resize(i, (100,100))
+    resized_image = cv2.resize(i, (30, 30))
     cv2.imwrite(imgPathOut+str(img_num)+'.jpg', resized_image)
     img_num += 1

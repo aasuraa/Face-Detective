@@ -1,4 +1,4 @@
-import SSS.ViolaJones.Regions as region
+import faceDet.ViolaJones.Regions as region
 import numpy as np
 
 class WeakClassifier:
@@ -50,11 +50,10 @@ def computeFeatures(frameSize):
     :return: an array of tuples. Each tuple's first element is an array of the rectangle regions which positively contribute to the feature.
         The second element is an array of rectangle regions negatively contributing to the feature
     """
-
     height, width = frameSize
     features = []
-    for w in range(1, width + 1, 5):    # width, height are the frame values 53
-        for h in range(1, height + 1, 5):       # i, j are the positions; w, h are the width and height of feature
+    for w in range(1, width + 1, 2):    # width, height are the frame values 53
+        for h in range(1, height + 1, 2):       # i, j are the positions; w, h are the width and height of feature
             i = 0
             while i + w < width:
                 j = 0
@@ -83,8 +82,8 @@ def computeFeatures(frameSize):
                     if i + 2 * w < width and j + 2 * h < height:
                         features.append(([right, bottom], [immediate, bottom_right]))
 
-                    j += 5
-                i += 5
+                    j += 2
+                i += 2
     print("Computed %d features" % (len(features)))
     return np.array(features)
 
@@ -93,23 +92,20 @@ def apply_features(features, training_data):
     """
     :param features:
         An array of tuples [(positive), (negative)].
-    :param training_data: Array of tuples [(imageName, intergalImage, classificationValue)].
+    :param training_data: Array of tuples [(intergalImage, classificationValue)].
     :return:
         X: A numpy array of shape (len(features), len(training_data)). Each row represents the value of a single feature for each training example
-        y: A numpy array of shape len(training_data). y = training_data[2]
+        y: A numpy array of shape len(training_data). y = training_data[1]
     """
     X = np.zeros((len(features), len(training_data)))
-    y = np.array(list(map(lambda data: data[2], training_data)))    # y is only the actual classification of images
-    error = []  # store error % of each feature
+    y = np.array(list(map(lambda data: data[1], training_data)))    # y is only the actual classification of images
     i = 0
     for positive_regions, negative_regions in features:     # apply same feature to all images, repeat for all features
-        print("Applied %d" % i)     # num of features applied
+        # if i%100 == 0: print("Applied %d" % i)     # num of features applied
         feature = lambda ii: sum([pos.computeScore(ii) for pos in positive_regions]) - sum(
             [neg.computeScore(ii) for neg in negative_regions])
         # data[0] is training data, feature(data[0]) is where the training data is applied thorough map
         # provide training data to feature function above
-        X[i] = list(map(lambda data: feature(data), training_data))
-        # find error % here for this feature and add to new array
+        X[i] = list(map(lambda data: feature(data[0]), training_data))
         i += 1
-    # select min of errors
     return X, y

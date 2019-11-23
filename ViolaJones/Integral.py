@@ -30,7 +30,7 @@ def powerfulIntegral(images, val):
     :return: array o tuplets (name, integral image, value)
     """
     arr = []
-    for name, img in images:
+    for img in images:
         int_img = integral_image(img)
-        arr.append((name, int_img, val))
+        arr.append((int_img, val))
     return arr

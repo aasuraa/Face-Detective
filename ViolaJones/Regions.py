@@ -1,5 +1,3 @@
-import pandas as pd
-
 class RectangleRegion:
     """
         The Rectangle region behaves as a part of features.
@@ -20,21 +18,12 @@ class RectangleRegion:
         self.height = height
 
     def computeScore(self, ii):
-        """
-            Computes the rectangle region value (pos neg val) given the integral image of type name, integralImage, val
-        (pos or neg)
-        If integral image is positive, we need to refer to csv file else, have default values for negative images.
-        From csv file add xmin and ymin value to the height and width of the region to calculate it's value.
-        We don't want to save the feature with this height or width because it's different for different images.
-        """
-        csvFile = pd.read_csv('C:/Users/sagar/Desktop/CSC485/vjtest/face_labels.csv')
-        # if val is 1, read the csv file and get min i and j to add to positions
-        if ii[2] == 1:  # i is x, j is y which now becomes starting position for faces or non faces
-            row = csvFile.loc[csvFile['filename'] == ii[0]]  # go to row with image name
-            i = int(row['xmin'])
-            j = int(row['ymin'])
-        else:   # position somewhere in the middle to get rid of bias where neg images have white background
-            i = 20
-            j = 20
-        return ii[1][self.y + self.height + j][self.x + self.width + i] + ii[1][self.y + j][self.x + i] - (
-                    ii[1][self.y + self.height + j][self.x + i] + ii[1][self.y + j][self.x + self.width + i])
+        return ii[self.y + self.height][self.x + self.width] + ii[self.y][self.x] - (
+                    ii[self.y + self.height][self.x] + ii[self.y][self.x + self.width])
+
+
+    def __str__(self):
+        return "(x= %d, y= %d, width= %d, height= %d)" % (self.x, self.y, self.width, self.height)
+
+    def __repr__(self):
+        return "RectangleRegion(%d, %d, %d, %d)" % (self.x, self.y, self.width, self.height)
