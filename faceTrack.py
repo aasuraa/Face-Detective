@@ -4,25 +4,54 @@ import RPi.GPIO as GPIO
 import time
 
 def moveServoPos(i, p):
+	'''
+		moves the servo positively to the right or down
+		args:
+			i:	duty cycle
+			p:	pwm
+		return:
+			i: 	duty cycle
+	'''
     p.ChangeDutyCycle(i)
     #time.sleep(.09)
     return (i+.5)
     
 def moveServoNeg(i, p):
+	'''
+		moves the servo negatively to the left or up
+		args:
+			i:	duty cycle
+			p:	pwm
+		return:
+			i:	duty cycle
+	'''
     p.ChangeDutyCycle(i)
     #time.sleep(.09)
     return (i-.5)
     
-def defaultServoMove(i, horzFlag): 
+def defaultServoMove(i, horzFlag, iVer=2.0): 
 	'''
-		Moves the servo horizontally
+		takes the servo to the initial position and implements continuous horizontal movement
+		vertical servo is taken to initial position everytime face is lost
+		horizontal servo resumes the movement
+		args:
+			i:	duty cycle position, initial to the far right
+			horzFlag:	flag to move positively or negatively
+		return:			(necessary so it can resume pre-face detection movement)
+			i:	duty cycle positon
+			horzFlag:	flag for movement
 	'''   
-	
-	servoPIN = 22
 	GPIO.setmode(GPIO.BCM)
 	GPIO.setwarnings(False)
-	GPIO.setup(servoPIN, GPIO.OUT)
 
+	servoPIN = 17
+	GPIO.setup(servoPIN, GPIO.OUT)
+	p = GPIO.PWM(servoPIN, 50)
+	p.start(iVer)
+	p.ChangeDutyCycle(iVer)
+
+	servoPIN = 22
+	GPIO.setup(servoPIN, GPIO.OUT)
 	p = GPIO.PWM(servoPIN, 50)
 	p.start(i)
 	p.ChangeDutyCycle(i)
@@ -47,12 +76,21 @@ def defaultServoMove(i, horzFlag):
 	except KeyboardInterrupt:
 		p.stop()
 		GPIO.cleanup()  
+	# TODO: check to see if cheaning up everytime is necessary
 	GPIO.cleanup()
 
 def positionServo(x, y, w, h, i):
+	'''
+		maps the servo position to face position
+		executes only if the face goes out of 90% of the frame boundary
+		args:
+			x, y:	face top left cordinates
+			w, h:	face width, height
+			i: 		duty cycle value
+	'''
 	GPIO.setmode(GPIO.BCM)
 	GPIO.setwarnings(False)
-	if (x < 0.1*fLen or x+w > 0.9*fLen):
+	if (x < 0.1*fLen or x+w > 0.9*fLen):	# horizontal movement
 		GPIO.setup(22, GPIO.OUT)
 		p = GPIO.PWM(22, 50)
 		p.start(i)
@@ -62,33 +100,40 @@ def positionServo(x, y, w, h, i):
 		else:							# move right, pos movement, l
 			return moveServoNeg(i, p)
 			# print("x+w>")
-	if (y < 0.1*fWid or y+h > 0.9*fWid):
+	if (y < 0.1*fWid or y+h > 0.9*fWid):	# vertical movement
 		GPIO.setup(17, GPIO.OUT)
 		p = GPIO.PWM(17, 50)
 		p.start(i)
 		if (y < 0.1*fWid):				# move down, pos movement, u
-			return moveServoPos(i, p)
+			iVer = moveServoPos(iVer, p)
+			return i
 			# print("y<")
 		else:							# move up, neg movement, d
-			return moveServoNeg(i, p)
+			iVer = moveServoNeg(iVer, p)
+			return i
 			# print("y+h>")
 
 '''
     GPIO BCM = 17 for vertical movement
     GPIO BCM = 22 for horizontal movement
 '''
+# TODO: make use of global variables for pins
+# length and width of the video capture frame
+global fLen 
+global fWid 
+global iVer
+
 i = 2.0 	# initial servo position
+iVer = 2.0	# initial vertical servo position, servo has to come back to this
 horzFlag = True 	# initial servo movement direction
 
 faceCascade = cv2.CascadeClassifier('Cascades/haarcascade_frontalface_default.xml')
 
 vid = cv2.VideoCapture(0)													#initializing the video capture
-global fLen 
-global fWid 
 fLen = vid.get(3)
 fWid = vid.get(4)
 	
-while(True):
+while(cap.isOpened()):
 	ret, frame = vid.read()
 	gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) 						#only for grayscale image
 	
