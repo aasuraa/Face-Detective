@@ -14,7 +14,7 @@ def moveServoPos(i, p):
     '''
     p.ChangeDutyCycle(i)
     # time.sleep(.5)
-    cv2.waitKey(1000)
+    # cv2.waitKey(2000)
     return (i+.5)
     
 def moveServoNeg(i, p):
@@ -28,7 +28,7 @@ def moveServoNeg(i, p):
     '''
     p.ChangeDutyCycle(i)
     # time.sleep(.5)
-    cv2.waitKey(1000)
+    # cv2.waitKey(2000)
     return (i-.5)
 
 def verPosition(iVer):
@@ -49,7 +49,7 @@ def position(i, iVer):
     q = GPIO.PWM(servoPIN, 50)
     q.start(i)
     print("Initial Position Set...")
-    time.sleep(3)
+    time.sleep(1)
     
     GPIO.cleanup()
     
@@ -106,7 +106,7 @@ def mapServoFace(x, y, w, h):
             else:
                 iVer = moveServoPos(iVer, p)
     print("Face mapped in frame")
-    # cv2.waitKey(2000)
+    cv2.waitKey(2000)
     GPIO.cleanup()
     
 # global fLen 
@@ -127,7 +127,6 @@ cv2.waitKey(2000)
 position(i, iVer)
 
 while(vid.isOpened()):
-	# cv2.waitKey(5000)
 	ret, frame = vid.read()
 	gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)                      #only for grayscale image
     
@@ -135,11 +134,13 @@ while(vid.isOpened()):
 	faces = faceCascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5, minSize=(20,20))
     
 	for (x, y, w, h) in faces:
+		print(x, y, w, h)
 		cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 255), 2)
 		roi_color = frame[y:y+h, x:x+w]
 		if( (x < 0.1*fLen) or (y < 0.1*fWid) or (x+w > 0.9*fLen) or (y+h > 0.9*fWid)):
 			# if (i>=2.0 and i<=12.0) or (iVer >= 1.5 and iVer<= 4.0):
 			mapServoFace(x, y, w, h)
+			# cv2.waitKey(5000)
     
 	cv2.imshow('frame', cv2.flip(frame, 1))
 	if cv2.waitKey(1) & 0xFF == ord('q'):                                   # quit with q
