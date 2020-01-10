@@ -1,9 +1,6 @@
 import RPi.GPIO as GPIO
 import time
 
-'''
-    GPIO BCM = 17 for horizontal movement
-'''
 def verOne(i):
     p.ChangeDutyCycle(i)
     time.sleep(.09)
@@ -25,14 +22,14 @@ p.start(i)
 p.ChangeDutyCycle(i)
 verFlag = True     # tracks the movement of the Horizontal servo
 try:
-    while i<=7.0 and i>=1.0:
+    while i<=5.0 and i>=0.0:
         if verFlag == True:
             i = verOne(i)
-            if i > 6.0:
+            if i > 4.0:
                 verFlag = False
         else:
             i = verTwo(i)
-            if i < 2.0:
+            if i < 0.5:
                 verFlag = True
 except KeyboardInterrupt:
     p.stop()

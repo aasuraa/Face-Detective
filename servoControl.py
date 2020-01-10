@@ -2,7 +2,8 @@ import RPi.GPIO as GPIO
 import time
 
 '''
-    GPIO BCM = 17 for horizontal movement
+    GPIO BCM = 17 for vertical movement
+    GPIO BCM = 22 for horizontal movement
 '''
 def horOne(i):
     p.ChangeDutyCycle(i)
@@ -14,7 +15,7 @@ def horTwo(i):
     time.sleep(.09)
     return (i-.1)
     
-servoPIN = 17
+servoPIN = 22
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 GPIO.setup(servoPIN, GPIO.OUT)
