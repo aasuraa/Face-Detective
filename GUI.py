@@ -40,15 +40,23 @@ class Application:
         self.panel = tk.Label(self.root)  # initialize video panel
         self.panel.pack(padx=10, pady=10)
 
-        # create buttons
-        btn1 = tk.Button(self.root, text="Add User", command=self.addUser)
+        frame1 = tk.Frame(self.root)
+        frame1.pack(side="left")
+        nameLabel = tk.Label(frame1, text='User Name:')
+        nameLabel.pack(fill="none", side="left", expand=False, padx=10, pady=10)
+        self.nameEntry = tk.Entry(frame1)
+        self.nameEntry.pack(fill="none", side="left", expand=True, padx=10, pady=10)
+        btn1 = tk.Button(frame1, text="Add User", command=self.addUser)
         btn1.pack(fill="none", side="left", expand=True, padx=10, pady=10)
 
-        btn2 = tk.Button(self.root, text="Toggel Recognizer", command=self.toggelRec)
-        btn2.pack(fill="none", side="left", expand=True, padx=10, pady=10)
-
-        btn3 = tk.Button(self.root, text="Exit", command=self.destructor)
-        btn3.pack(fill="none", side="left", expand=True, padx=10, pady=10)
+        frame2 = tk.Frame(self.root)
+        frame2.pack(side="bottom")
+        btn2 = tk.Button(frame2, text="Train Recognizer", command=self.trainNeural)
+        btn2.pack(fill="none", side="right", expand=True, padx=10, pady=10)
+        btn3 = tk.Button(frame2, text="Toggel Recognizer", command=self.toggelRec)
+        btn3.pack(fill="none", side="right", expand=True, padx=10, pady=10)
+        btn4 = tk.Button(frame2, text="Exit", command=self.destructor)
+        btn4.pack(fill="none", side="right", expand=True, padx=10, pady=10)
 
         self.stopEvent = threading.Event()
         self.thread = threading.Thread(target=self.videoLoop, args=())
@@ -74,7 +82,6 @@ class Application:
         if self.count > 50:
             print("[INFO] Face Added to folder")
             self.count = 0
-            self.trainNeural()
 
         if ref:
             frame = cv2.flip(frame, 1)
@@ -88,7 +95,7 @@ class Application:
 
                 # draw the class label + probability on the output image
                 text = "{}: {:.2f}%".format(label, preds[0][i] * 100)
-                cv2.putText(frame, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 255), 1, True)
+                cv2.putText(frame, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 1, True)
 
             # displaying in the GUI
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
@@ -178,12 +185,13 @@ class Application:
         plt.ylabel("Loss/Accuracy")
         plt.legend()
         plt.show()
+        # plt.savefig("plot.jpg")
 
         print("[INFO] evaluation done...")
 
         model.save('C:/Users/sagar/Desktop/CSC485/Capstone/newModel.h5')
         self.saveLB("lb", lb)
-        print("[INFO] serializing network and label binarizer...")
+        print("[INFO] serializing network and label binarizer done...")
 
     def addUser(self):
         """
@@ -191,9 +199,11 @@ class Application:
             counts 100
         """
         if self.count == 0:
-            print("[INFO] adding User...")
-            self.uname = input('\nenter user name and press <return> ==>  ')  # user name, string
-            print("\n[INFO] Initializing face capture. Look the camera and wait ...")
+            # print("[INFO] adding User...")
+            # self.uname = input('\nenter user name and press <return> ==>  ')  # user name, string
+            # print("\n[INFO] Initializing face capture. Look the camera and wait ...")
+            self.uname = self.nameEntry.get()
+            print("[INFO] adding User..."+self.uname)
             self.dataPath = "dataset/" + self.uname + "/"
         if not os.path.exists(self.dataPath):
             os.makedirs(self.dataPath)
