@@ -1,16 +1,22 @@
-import cv2
-import os
+import boto3
 
-path = "./output/"
+class TextAlert:
+    def __int__(self):
+        """
+            create a client
+        """
+        self.client = boto3.client(
+            "sns",
+            aws_access_key_id="AKIASWSXDFK6L2BZF74C",
+            aws_secret_access_key="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",
+            region_name="us-east-1"
+        )
 
-def load(path):
-    print("[INFO] loading images...")
-
-    images = []
-    for img in os.listdir(path):
-        if img.endswith('.jpg') or img.endswith('.jpeg'):
-            images.append((img, cv2.imread(path+img, 0)))
-    return images
-
-print(len(load(path)))
-
+    def notify(self):
+        """
+            Send sms
+        """
+        self.client.publish(
+            PhoneNumber="+17814924960",
+            Message="Hello World!"
+        )

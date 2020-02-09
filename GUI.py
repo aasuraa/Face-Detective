@@ -4,13 +4,14 @@ import threading
 import cv2
 import os
 import pickle
-import Capstone.NN as nn
 import tensorflow as tf
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.metrics import classification_report
 import matplotlib.pylab as plt
+import random
+import boto3
 
 faceCascade = cv2.CascadeClassifier('Cascades/haarcascade_frontalface_default.xml')
 
@@ -28,8 +29,8 @@ class Application:
         self.uname = None
         self.rec = False            # flag to use recognizer or not
 
-        self.model = tf.keras.models.load_model('./output/newModel.h5')
-        self.lb = self.load("./output/lb")
+        self.model = tf.keras.models.load_model(self.dataPath+"newModel.h5")
+        self.lb = self.load(self.dataPath+"lb")
         print("[INFO] models loaded...")
 
         self.root = tk.Tk()  # initialize root window
@@ -80,7 +81,7 @@ class Application:
         faces = faceCascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5, minSize=(20, 20))
         for (x, y, w, h) in faces:
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
-            # saving the last face everytime we have a face
+            # saving the last face every time we have a face
             self.lastFace = gray[y:y+h, x:x+w]
 
         if self.count <= 100 and self.count != 0:
@@ -98,6 +99,10 @@ class Application:
                 preds = self.model.predict(image)
                 i = preds.argmax(axis=1)[0]
                 label = self.lb.classes_[i]
+                if label == "sagar":
+                    # TODO: Track user, text is fine
+                    # self.sendText(label)
+                    pass
 
                 # draw the class label + probability on the output image
                 text = "{}: {:.2f}%".format(label, preds[0][i] * 100)
@@ -111,6 +116,20 @@ class Application:
             self.panel.config(image=imgtk)  # show the image
         self.root.after(30, self.videoLoop)  # call the same function after 30 milliseconds
 
+    def sendText(self, pName):
+        client = boto3.client(
+                    "sns",
+                    aws_access_key_id="AKIASWSXDFK6L2BZF74C",
+                    aws_secret_access_key="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",
+                    region_name="us-east-1"
+                )
+        client.publish(
+                    # PhoneNumber="+17814924960",
+                    PhoneNumber="+61432848561",
+                    Message="ALERT! "+ pName +" seen.."
+                )
+        print("[MSG] Text sent...")
+
     def toggelRec(self):
         if self.rec == True:
             self.rec = False
@@ -123,18 +142,46 @@ class Application:
     def removeUser(self):
         pass
 
+    def load_images(self, path):
+        """
+            Initialize the data and labels form the path of the data set given
+        :param path: Path to user folders
+        :return: array of images and labels respectively
+                labels meaning categorical name
+        """
+
+        print("[INFO] loading images...")
+        data = []
+        labels = []
+
+        # grab the image paths and randomly shuffle them
+        imagePaths = os.listdir(path)   # list of folders in the dataset
+        numCal = len(imagePaths)
+        random.seed(42)
+        random.shuffle(imagePaths)
+
+        # loop over the input images
+        for imagePath in imagePaths:
+            label = imagePath
+            imagePath = path+imagePath+'/'
+            for img in os.listdir(imagePath):
+                image = cv2.imread(imagePath+img, 0) / 255.0
+                image = image.reshape(*image.shape, 1)
+                data.append(image)    # already resized to 30x30
+                labels.append(label)
+        return data, labels, numCal
+
     def trainNeural(self):
         """
             takes the pictures taken and use it to train the neural network architecture model
             saves the trained model
         """
         print("[INFO] initializing train...")
-        f = nn.FaceNeural()
         # load images for training
         path = "./dataset/"
-        data, labels, numCal = f.load_images(path)
+        data, labels, numCal = self.load_images(path)
 
-        (trainX, testX, trainY, testY) = train_test_split(data, labels, test_size=0.25, random_state=42)
+        (trainX, testX, trainY, testY) = train_test_split(data, labels, test_size=0.20, random_state=42)
 
         print("[INFO] data split...")
         # change to arrays instead of using list for input
@@ -143,6 +190,8 @@ class Application:
         trainY = np.array(trainY)
         testY = np.array(testY)
 
+        print(len(trainX)+len(testX), len(trainX), len(testX), len(trainY), len(testX), trainX.shape)
+
         # one hot encoding
         lb = LabelBinarizer()
         trainY = lb.fit_transform(trainY)  # fit finds all unique class labels
@@ -150,40 +199,38 @@ class Application:
 
         # model architecture code
         print("[INFO] building architecture...")
-
         model = tf.keras.models.Sequential()
         model.add(tf.keras.layers.Dense(1024, input_shape=(30, 30, 1), name='inputLayer', activation="relu"))
         model.add(tf.keras.layers.Dense(512, name='hiddenLayer1', activation="relu"))
+        # model.add(tf.keras.layers.Dense(256, name='hiddenLayer2', activation="relu"))
         model.add(tf.keras.layers.Flatten())
         model.add(tf.keras.layers.Dense(len(lb.classes_), name='outputLayer', activation="softmax"))
 
         model.summary()
 
-        lr = 0.00000001
-        epochs = 10
-        batch = 10  # size of group of data to pass through the network
-
-        # print(trainY)
+        epochs = 1
         print("[INFO] training network...")
+        model.compile(loss="categorical_crossentropy", optimizer='adam', metrics=["accuracy"])
+        # svg optimizer avg 80%, adam gives 90%+
 
-        # TODO: use categorical_crossentropy function as number of users increases
-        # adam = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.9, beta_2=0.999, amsgrad=False)
-        model.compile(loss="categorical_crossentropy", optimizer='sgd', metrics=["accuracy"])
-        # train or fit the model to the data
-        print(len(trainX), len(testX), len(trainY), len(testY), trainX.shape)
-
-        H = model.fit(trainX, trainY, batch_size = 32, validation_data=(testX, testY), epochs=epochs)
+        # train or fit the model to the data using k cross validation
+        kf = KFold(n_splits=10, random_state=1)
+        print("[INFO] Splitting data into ", kf, "...")
+        history = []
+        for a, b in kf.split(trainX, trainY):           # takes 10% of data for validation
+            H = model.fit(trainX[a], trainY[a], batch_size = 32, validation_data=(trainX[b], trainY[b]), epochs=epochs)
+            history.append(H)
 
         # evaluate the network
         print("[INFO] evaluating network...")
-
-        predictions = model.predict(testX, batch_size = 32)
+        predictions = model.predict(testX, batch_size = 5)
         print(classification_report(testY.argmax(axis=1), predictions.argmax(axis=1), target_names=lb.classes_))
 
         # plot the training loss and accuracy
         N = np.arange(0, epochs)
         plt.style.use("ggplot")
         plt.figure()
+        # for H in history:
         plt.plot(N, H.history["loss"], label="train_loss")
         plt.plot(N, H.history["val_loss"], label="val_loss")
         plt.plot(N, H.history["accuracy"], label="train_acc")
@@ -192,17 +239,16 @@ class Application:
         plt.xlabel("Epoch #")
         plt.ylabel("Loss/Accuracy")
         plt.legend()
-        plt.show()
-        plt.savefig("./output/plot.png")
+        plt.savefig(self.dataPath+"plot.png")
 
         print("[INFO] evaluation done...")
 
-        model.save('./output/newModel.h5')
-        self.saveLB("./output/lb", lb)
+        model.save(self.dataPath+'newModel.h5')
+        self.saveLB(self.dataPath+"lb", lb)
         print("[INFO] serializing network and label binarizer done...")
 
-        self.model = tf.keras.models.load_model('./output/newModel.h5')
-        self.lb = self.load("./output/lb")
+        self.model = tf.keras.models.load_model(self.dataPath+"newModel.h5")
+        self.lb = self.load(self.dataPath+"lb")
         print("[INFO] reloading of model successful...")
 
     def addUser(self):
@@ -234,7 +280,7 @@ class Application:
         self.vs.release()  # release web camera
         cv2.destroyAllWindows()  # it is not mandatory in this application
 
-    # methods for saving and loading binarizer
+    # methods for saving and loading the binarizer
     def saveLB(self, filename, lb):
         """
         Saves the classifier to a pickle
