@@ -4,31 +4,33 @@ import threading
 import cv2
 import os
 import pickle
-import Capstone.NN as nn
 import tensorflow as tf
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.metrics import classification_report
 import matplotlib.pylab as plt
+import random
+import boto3
 
 faceCascade = cv2.CascadeClassifier('Cascades/haarcascade_frontalface_default.xml')
 
 class Application:
-    def __init__(self, dataPath = "./"):
+    def __init__(self, dataPath = "./output/"):
         """
             Initialize application which uses OpenCV + Tkinter. It displays video frame and buttons.
         """
         self.vs = cv2.VideoCapture(0)
         self.dataPath = dataPath  # store output path
+        self.dataPathImg = None     # path to store the images
         self.current_image = None  # current image from the camera
         self.lastFace = None
         self.count = 0
         self.uname = None
         self.rec = False            # flag to use recognizer or not
 
-        self.model = tf.keras.models.load_model('newModel.h5')
-        self.lb = self.load("lb")
+        self.model = tf.keras.models.load_model(self.dataPath+"newModel.h5")
+        self.lb = self.load(self.dataPath+"lb")
         print("[INFO] models loaded...")
 
         self.root = tk.Tk()  # initialize root window
@@ -37,26 +39,33 @@ class Application:
         # self.destructor function gets fired when the window is closed
         self.root.protocol('WM_DELETE_WINDOW', self.destructor)
 
-        self.panel = tk.Label(self.root)  # initialize video panel
-        self.panel.pack(padx=10, pady=10)
-
         frame1 = tk.Frame(self.root)
-        frame1.pack(side="left")
+        frame1.pack(side="top")
+        self.panel = tk.Label(frame1)  # initialize video panel
+        self.panel.pack(padx=10, pady=10, side="top")
+
+        # Buttons on frame 1
         nameLabel = tk.Label(frame1, text='User Name:')
         nameLabel.pack(fill="none", side="left", expand=False, padx=10, pady=10)
         self.nameEntry = tk.Entry(frame1)
         self.nameEntry.pack(fill="none", side="left", expand=True, padx=10, pady=10)
+        targetbtn = tk.Button(frame1, text="Target User", command=self.targetUser)
+        targetbtn.pack(fill="none", side="right", expand=True, padx=10, pady=10)
+        rmvbtn = tk.Button(frame1, text="Remove User", command=self.removeUser)
+        rmvbtn.pack(fill="none", side="right", expand=True, padx=10, pady=10)
         btn1 = tk.Button(frame1, text="Add User", command=self.addUser)
-        btn1.pack(fill="none", side="left", expand=True, padx=10, pady=10)
+        btn1.pack(fill="none", side="right", expand=True, padx=10, pady=10)
 
         frame2 = tk.Frame(self.root)
-        frame2.pack(side="bottom")
+        frame2.pack(side="top")
+
+        # Buttons on frame 2
         btn2 = tk.Button(frame2, text="Train Recognizer", command=self.trainNeural)
-        btn2.pack(fill="none", side="right", expand=True, padx=10, pady=10)
+        btn2.pack(fill="none", side="left", expand=True, padx=10, pady=10)
         btn3 = tk.Button(frame2, text="Toggel Recognizer", command=self.toggelRec)
-        btn3.pack(fill="none", side="right", expand=True, padx=10, pady=10)
+        btn3.pack(fill="none", side="left", expand=True, padx=10, pady=10)
         btn4 = tk.Button(frame2, text="Exit", command=self.destructor)
-        btn4.pack(fill="none", side="right", expand=True, padx=10, pady=10)
+        btn4.pack(fill="none", side="left", expand=True, padx=10, pady=10)
 
         self.stopEvent = threading.Event()
         self.thread = threading.Thread(target=self.videoLoop, args=())
@@ -72,14 +81,12 @@ class Application:
         faces = faceCascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5, minSize=(20, 20))
         for (x, y, w, h) in faces:
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
-            roi_color = frame[y:y + h, x:x + w]
-            # saving the last face everytime we have a face
+            # saving the last face every time we have a face
             self.lastFace = gray[y:y+h, x:x+w]
 
-        # TODO: need to handle no face detected error
-        if self.count <= 50 and self.count != 0:
+        if self.count <= 100 and self.count != 0:
             self.addUser()
-        if self.count > 50:
+        if self.count > 100:
             print("[INFO] Face Added to folder")
             self.count = 0
 
@@ -92,6 +99,10 @@ class Application:
                 preds = self.model.predict(image)
                 i = preds.argmax(axis=1)[0]
                 label = self.lb.classes_[i]
+                if label == "sagar":
+                    # TODO: Track user, text is fine
+                    # self.sendText(label)
+                    pass
 
                 # draw the class label + probability on the output image
                 text = "{}: {:.2f}%".format(label, preds[0][i] * 100)
@@ -105,11 +116,60 @@ class Application:
             self.panel.config(image=imgtk)  # show the image
         self.root.after(30, self.videoLoop)  # call the same function after 30 milliseconds
 
+    def sendText(self, pName):
+        client = boto3.client(
+                    "sns",
+                    aws_access_key_id="AKIASWSXDFK6L2BZF74C",
+                    aws_secret_access_key="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",
+                    region_name="us-east-1"
+                )
+        client.publish(
+                    # PhoneNumber="+17814924960",
+                    PhoneNumber="+61432848561",
+                    Message="ALERT! "+ pName +" seen.."
+                )
+        print("[MSG] Text sent...")
+
     def toggelRec(self):
         if self.rec == True:
             self.rec = False
         else:
             self.rec = True
+
+    def targetUser(self):
+        pass
+
+    def removeUser(self):
+        pass
+
+    def load_images(self, path):
+        """
+            Initialize the data and labels form the path of the data set given
+        :param path: Path to user folders
+        :return: array of images and labels respectively
+                labels meaning categorical name
+        """
+
+        print("[INFO] loading images...")
+        data = []
+        labels = []
+
+        # grab the image paths and randomly shuffle them
+        imagePaths = os.listdir(path)   # list of folders in the dataset
+        numCal = len(imagePaths)
+        random.seed(42)
+        random.shuffle(imagePaths)
+
+        # loop over the input images
+        for imagePath in imagePaths:
+            label = imagePath
+            imagePath = path+imagePath+'/'
+            for img in os.listdir(imagePath):
+                image = cv2.imread(imagePath+img, 0) / 255.0
+                image = image.reshape(*image.shape, 1)
+                data.append(image)    # already resized to 30x30
+                labels.append(label)
+        return data, labels, numCal
 
     def trainNeural(self):
         """
@@ -117,12 +177,11 @@ class Application:
             saves the trained model
         """
         print("[INFO] initializing train...")
-        f = nn.FaceNeural()
         # load images for training
-        path = "C:/Users/sagar/Desktop/CSC485/Capstone/dataset/"
-        data, labels, numCal = f.load_images(path)
+        path = "./dataset/"
+        data, labels, numCal = self.load_images(path)
 
-        (trainX, testX, trainY, testY) = train_test_split(data, labels, test_size=0.25, random_state=42)
+        (trainX, testX, trainY, testY) = train_test_split(data, labels, test_size=0.20, random_state=42)
 
         print("[INFO] data split...")
         # change to arrays instead of using list for input
@@ -131,51 +190,47 @@ class Application:
         trainY = np.array(trainY)
         testY = np.array(testY)
 
+        print(len(trainX)+len(testX), len(trainX), len(testX), len(trainY), len(testX), trainX.shape)
+
         # one hot encoding
         lb = LabelBinarizer()
         trainY = lb.fit_transform(trainY)  # fit finds all unique class labels
         testY = lb.transform(testY)  # no fit needed as class labels already found
 
-        # change labels to one hot vectors
-        trainY = tf.keras.utils.to_categorical(trainY, numCal)
-        testY = tf.keras.utils.to_categorical(testY, numCal)
-
         # model architecture code
         print("[INFO] building architecture...")
-
         model = tf.keras.models.Sequential()
-        model.add(tf.keras.layers.Conv2D(1024, (3, 3), input_shape=(30, 30, 1), name='inputLayer', activation="relu"))
-        model.add(tf.keras.layers.Conv2D(512, (3, 3), name='hiddenLayer1', activation="relu"))
+        model.add(tf.keras.layers.Dense(1024, input_shape=(30, 30, 1), name='inputLayer', activation="relu"))
+        model.add(tf.keras.layers.Dense(512, name='hiddenLayer1', activation="relu"))
+        # model.add(tf.keras.layers.Dense(256, name='hiddenLayer2', activation="relu"))
         model.add(tf.keras.layers.Flatten())
-        model.add(tf.keras.layers.Dense(numCal, name='outputLayer', activation="softmax"))
+        model.add(tf.keras.layers.Dense(len(lb.classes_), name='outputLayer', activation="softmax"))
 
         model.summary()
 
-        lr = 0.0000000001
         epochs = 1
-        batch = 10  # size of group of data to pass through the network
-
-        # print(trainY)
         print("[INFO] training network...")
-
-        # TODO: use categorical_crossentropy function as number of users increases
-        adam = tf.keras.optimizers.Adam(learning_rate=lr, beta_1=0.9, beta_2=0.999, amsgrad=False)
         model.compile(loss="categorical_crossentropy", optimizer='adam', metrics=["accuracy"])
-        # train or fit the model to the data
-        print(len(trainX), len(testX), len(trainY), len(testY), trainX.shape)
+        # svg optimizer avg 80%, adam gives 90%+
 
-        H = model.fit(trainX, trainY, validation_data=(testX, testY), epochs=epochs)
+        # train or fit the model to the data using k cross validation
+        kf = KFold(n_splits=10, random_state=1)
+        print("[INFO] Splitting data into ", kf, "...")
+        history = []
+        for a, b in kf.split(trainX, trainY):           # takes 10% of data for validation
+            H = model.fit(trainX[a], trainY[a], batch_size = 32, validation_data=(trainX[b], trainY[b]), epochs=epochs)
+            history.append(H)
 
         # evaluate the network
         print("[INFO] evaluating network...")
-
-        predictions = model.predict(testX)
+        predictions = model.predict(testX, batch_size = 5)
         print(classification_report(testY.argmax(axis=1), predictions.argmax(axis=1), target_names=lb.classes_))
 
         # plot the training loss and accuracy
         N = np.arange(0, epochs)
         plt.style.use("ggplot")
         plt.figure()
+        # for H in history:
         plt.plot(N, H.history["loss"], label="train_loss")
         plt.plot(N, H.history["val_loss"], label="val_loss")
         plt.plot(N, H.history["accuracy"], label="train_acc")
@@ -184,31 +239,39 @@ class Application:
         plt.xlabel("Epoch #")
         plt.ylabel("Loss/Accuracy")
         plt.legend()
-        plt.show()
-        # plt.savefig("plot.jpg")
+        plt.savefig(self.dataPath+"plot.png")
 
         print("[INFO] evaluation done...")
 
-        model.save('C:/Users/sagar/Desktop/CSC485/Capstone/newModel.h5')
-        self.saveLB("lb", lb)
+        model.save(self.dataPath+'newModel.h5')
+        self.saveLB(self.dataPath+"lb", lb)
         print("[INFO] serializing network and label binarizer done...")
+
+        self.model = tf.keras.models.load_model(self.dataPath+"newModel.h5")
+        self.lb = self.load(self.dataPath+"lb")
+        print("[INFO] reloading of model successful...")
 
     def addUser(self):
         """
             takes username, takes face pictures of the user present, and saves them
             counts 100
+            if no face detected at all since start, then does nthg
+            if a face was detected, add the same face if no new is detected
         """
-        if self.count == 0:
-            # print("[INFO] adding User...")
-            # self.uname = input('\nenter user name and press <return> ==>  ')  # user name, string
-            # print("\n[INFO] Initializing face capture. Look the camera and wait ...")
-            self.uname = self.nameEntry.get()
-            print("[INFO] adding User..."+self.uname)
-            self.dataPath = "dataset/" + self.uname + "/"
-        if not os.path.exists(self.dataPath):
-            os.makedirs(self.dataPath)
-        cv2.imwrite(self.dataPath + self.uname + '.' + str(self.count) + ".jpg", cv2.resize(self.lastFace, (30, 30)))
-        self.count+=1
+        if not self.nameEntry.get():        # if not True i.e empty
+            print("[INFO] Empty User Name!")
+        else:
+            if self.lastFace is not None:   # for first use if no face at all
+                if self.count == 0:
+                    self.uname = self.nameEntry.get()
+                    print("[INFO] adding User..."+self.uname)
+                    self.dataPathImg = "./dataset/" + self.uname + "/"
+                if not os.path.exists(self.dataPathImg):
+                    os.makedirs(self.dataPathImg)
+                cv2.imwrite(self.dataPathImg + self.uname + '.' + str(self.count) + ".jpg", cv2.resize(self.lastFace, (30, 30)))
+                self.count+=1
+            else:
+                print("[INFO] no face detected...")
 
     def destructor(self):
         """ Destroy the root object and release all resources """
@@ -217,7 +280,7 @@ class Application:
         self.vs.release()  # release web camera
         cv2.destroyAllWindows()  # it is not mandatory in this application
 
-    # methods for saving and loading binarizer
+    # methods for saving and loading the binarizer
     def saveLB(self, filename, lb):
         """
         Saves the classifier to a pickle

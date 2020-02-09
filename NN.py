@@ -35,3 +35,6 @@ class FaceNeural():
                 data.append(image)    # already resized to 30x30
                 labels.append(label)
         return data, labels, numCal
+
+    def NeuralNetwork(self):
+        pass
