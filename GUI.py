@@ -12,6 +12,7 @@ from sklearn.metrics import classification_report
 import matplotlib.pylab as plt
 import random
 import boto3
+from botocore.exceptions import NoCredentialsError
 
 faceCascade = cv2.CascadeClassifier('Cascades/haarcascade_frontalface_default.xml')
 
@@ -28,6 +29,10 @@ class Application:
         self.count = 0
         self.uname = None
         self.rec = False            # flag to use recognizer or not
+        # self.targets = []
+
+        self.ACCESS_KEY = 'AKIASWSXDFK6L2BZF74C'
+        self.SECRET_KEY = '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'
 
         self.model = tf.keras.models.load_model(self.dataPath+"newModel.h5")
         self.lb = self.load(self.dataPath+"lb")
@@ -99,7 +104,9 @@ class Application:
                 preds = self.model.predict(image)
                 i = preds.argmax(axis=1)[0]
                 label = self.lb.classes_[i]
+                # TODO: Create and read from txt file to target users
                 if label == "sagar":
+                    cv2.imwrite("./output/lastFace.jpg", self.lastFace)
                     # TODO: Track user, text is fine
                     # self.sendText(label)
                     pass
@@ -117,17 +124,37 @@ class Application:
         self.root.after(30, self.videoLoop)  # call the same function after 30 milliseconds
 
     def sendText(self, pName):
-        client = boto3.client(
-                    "sns",
-                    aws_access_key_id="",
-                    aws_secret_access_key="",
-                    region_name="us-east-1"
-                )
-        client.publish(
-                    # PhoneNumber="+178149249",
-                    Message="ALERT! "+ pName +" seen.."
-                )
-        print("[MSG] Text sent...")
+        faceURL = "https://facedetective-2020.s3-us-west-2.amazonaws.com/lastFace.jpg"
+
+        uploaded = self.upload_to_aws("./output/lastFace.jpg", "facedetective-2020", "lastFace.jpg")
+        if uploaded:
+            client = boto3.client(
+                        "sns",
+                        aws_access_key_id=self.ACCESS_KEY,
+                        aws_secret_access_key=self.SECRET_KEY,
+                        region_name="us-east-1"
+                    )
+            client.publish(
+                        PhoneNumber="+17814924960",
+                        # PhoneNumber="+61432848561",
+                        Message="ALERT! "+ pName +" seen.. "+ faceURL
+                    )
+            print("[MSG] Text sent...")
+
+    def upload_to_aws(self, local_file, bucket, s3_file):
+        s3 = boto3.client('s3', aws_access_key_id= self.ACCESS_KEY,
+                          aws_secret_access_key= self.SECRET_KEY)
+
+        try:
+            s3.upload_file(local_file, bucket, s3_file)
+            print("Upload Successful")
+            return True
+        except FileNotFoundError:
+            print("The file was not found")
+            return False
+        except NoCredentialsError:
+            print("Credentials not available")
+            return False
 
     def toggelRec(self):
         if self.rec == True:
