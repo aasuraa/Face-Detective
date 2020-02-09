@@ -29,7 +29,7 @@ class Application:
         self.count = 0
         self.uname = None
         self.rec = False            # flag to use recognizer or not
-        # self.targets = []
+        self.targets = self.getTargets()
 
         self.ACCESS_KEY = 'AKIASWSXDFK6L2BZF74C'
         self.SECRET_KEY = '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'
@@ -55,6 +55,8 @@ class Application:
         self.nameEntry = tk.Entry(frame1)
         self.nameEntry.pack(fill="none", side="left", expand=True, padx=10, pady=10)
         targetbtn = tk.Button(frame1, text="Target User", command=self.targetUser)
+        targetbtn.pack(fill="none", side="right", expand=True, padx=10, pady=10)
+        targetbtn = tk.Button(frame1, text="Remove Target", command=self.targetRemove)
         targetbtn.pack(fill="none", side="right", expand=True, padx=10, pady=10)
         rmvbtn = tk.Button(frame1, text="Remove User", command=self.removeUser)
         rmvbtn.pack(fill="none", side="right", expand=True, padx=10, pady=10)
@@ -105,7 +107,8 @@ class Application:
                 i = preds.argmax(axis=1)[0]
                 label = self.lb.classes_[i]
                 # TODO: Create and read from txt file to target users
-                if label == "sagar":
+                if label in self.targets:
+                    # print(label)
                     cv2.imwrite("./output/lastFace.jpg", self.lastFace)
                     # TODO: Track user, text is fine
                     # self.sendText(label)
@@ -163,7 +166,47 @@ class Application:
             self.rec = True
 
     def targetUser(self):
-        pass
+        """
+            Read, write, and close the txt file containing targets
+        """
+        if not self.nameEntry.get():        # if not True i.e empty
+            print("[INFO] Empty User Name!")
+        else:
+            f = open("./output/targets.txt", "w+")
+            f.write(self.nameEntry.get()+"\r")
+            f.close()
+            print("[INFO] target set...")
+
+    def targetRemove(self):
+        """
+            Read, write, and close the txt file containing targets
+        """
+        if not self.nameEntry.get():        # if not True i.e empty
+            print("[INFO] Empty User Name!")
+        else:
+            print("[INFO] removing target...")
+            with open("./output/targets.txt", "r") as f:
+                if f.mode == "r":
+                    lines = f.readlines()
+                    with open("./output/targets.txt", "w+") as f:
+                        for line in lines:
+                            if line.strip("\n") != self.nameEntry.get():
+                                f.write(line)
+                        print("[INFO] target removed...")
+            f.close()
+
+    def getTargets(self):
+        """
+            Runs at the beginning of the application
+        """
+        print("[INFO] getting targets...")
+        tars = ["nuser"]
+        with open("./output/targets.txt", "r") as f:
+            if f.mode == "r":
+                lines = f.readlines()
+            for line in lines:
+                tars.append(line.strip("\n"))
+            return tars
 
     def removeUser(self):
         pass
