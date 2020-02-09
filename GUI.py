@@ -119,13 +119,12 @@ class Application:
     def sendText(self, pName):
         client = boto3.client(
                     "sns",
-                    aws_access_key_id="AKIASWSXDFK6L2BZF74C",
-                    aws_secret_access_key="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",
+                    aws_access_key_id="",
+                    aws_secret_access_key="",
                     region_name="us-east-1"
                 )
         client.publish(
-                    # PhoneNumber="+17814924960",
-                    PhoneNumber="+61432848561",
+                    # PhoneNumber="+178149249",
                     Message="ALERT! "+ pName +" seen.."
                 )
         print("[MSG] Text sent...")
