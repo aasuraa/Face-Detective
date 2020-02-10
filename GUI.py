@@ -31,8 +31,6 @@ class Application:
         self.rec = False            # flag to use recognizer or not
         self.targets = self.getTargets()
 
-        self.ACCESS_KEY = 'AKIASWSXDFK6L2BZF74C'
-        self.SECRET_KEY = '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'
 
         self.model = tf.keras.models.load_model(self.dataPath+"newModel.h5")
         self.lb = self.load(self.dataPath+"lb")
@@ -96,6 +94,7 @@ class Application:
         if self.count > 100:
             print("[INFO] Face Added to folder")
             self.count = 0
+            self.nameEntry.delete(0, 'end')
 
         if ref:
             frame = cv2.flip(frame, 1)
@@ -112,6 +111,8 @@ class Application:
                     cv2.imwrite("./output/lastFace.jpg", self.lastFace)
                     # TODO: Track user, text is fine
                     # self.sendText(label)
+
+
                     pass
 
                 # draw the class label + probability on the output image
@@ -167,7 +168,7 @@ class Application:
 
     def targetUser(self):
         """
-            Read, write, and close the txt file containing targets
+            write, and close the txt file containing targets
         """
         if not self.nameEntry.get():        # if not True i.e empty
             print("[INFO] Empty User Name!")
@@ -176,30 +177,33 @@ class Application:
             f.write(self.nameEntry.get()+"\r")
             f.close()
             print("[INFO] target set...")
+            self.nameEntry.delete(0, 'end')
+
 
     def targetRemove(self):
         """
             Read, write, and close the txt file containing targets
         """
-        if not self.nameEntry.get():        # if not True i.e empty
+        if not self.nameEntry.get():
             print("[INFO] Empty User Name!")
         else:
             print("[INFO] removing target...")
             with open("./output/targets.txt", "r") as f:
                 if f.mode == "r":
                     lines = f.readlines()
+                    f.close()
                     with open("./output/targets.txt", "w+") as f:
                         for line in lines:
                             if line.strip("\n") != self.nameEntry.get():
                                 f.write(line)
                         print("[INFO] target removed...")
-            f.close()
+                        f.close()
+            self.nameEntry.delete(0, 'end')
 
     def getTargets(self):
         """
-            Runs at the beginning of the application
+            Runs at the beginning of the application to get targets
         """
-        print("[INFO] getting targets...")
         tars = ["nuser"]
         with open("./output/targets.txt", "r") as f:
             if f.mode == "r":
