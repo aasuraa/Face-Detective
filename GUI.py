@@ -12,6 +12,7 @@ from sklearn.metrics import classification_report
 import matplotlib.pylab as plt
 import random
 import boto3
+from botocore.exceptions import NoCredentialsError
 
 faceCascade = cv2.CascadeClassifier('Cascades/haarcascade_frontalface_default.xml')
 
@@ -28,6 +29,8 @@ class Application:
         self.count = 0
         self.uname = None
         self.rec = False            # flag to use recognizer or not
+        self.targets = self.getTargets()
+
 
         self.model = tf.keras.models.load_model(self.dataPath+"newModel.h5")
         self.lb = self.load(self.dataPath+"lb")
@@ -50,6 +53,8 @@ class Application:
         self.nameEntry = tk.Entry(frame1)
         self.nameEntry.pack(fill="none", side="left", expand=True, padx=10, pady=10)
         targetbtn = tk.Button(frame1, text="Target User", command=self.targetUser)
+        targetbtn.pack(fill="none", side="right", expand=True, padx=10, pady=10)
+        targetbtn = tk.Button(frame1, text="Remove Target", command=self.targetRemove)
         targetbtn.pack(fill="none", side="right", expand=True, padx=10, pady=10)
         rmvbtn = tk.Button(frame1, text="Remove User", command=self.removeUser)
         rmvbtn.pack(fill="none", side="right", expand=True, padx=10, pady=10)
@@ -89,6 +94,7 @@ class Application:
         if self.count > 100:
             print("[INFO] Face Added to folder")
             self.count = 0
+            self.nameEntry.delete(0, 'end')
 
         if ref:
             frame = cv2.flip(frame, 1)
@@ -99,9 +105,14 @@ class Application:
                 preds = self.model.predict(image)
                 i = preds.argmax(axis=1)[0]
                 label = self.lb.classes_[i]
-                if label == "sagar":
+                # TODO: Create and read from txt file to target users
+                if label in self.targets:
+                    # print(label)
+                    cv2.imwrite("./output/lastFace.jpg", self.lastFace)
                     # TODO: Track user, text is fine
                     # self.sendText(label)
+
+
                     pass
 
                 # draw the class label + probability on the output image
@@ -117,17 +128,37 @@ class Application:
         self.root.after(30, self.videoLoop)  # call the same function after 30 milliseconds
 
     def sendText(self, pName):
-        client = boto3.client(
-                    "sns",
-                    aws_access_key_id="",
-                    aws_secret_access_key="",
-                    region_name="us-east-1"
-                )
-        client.publish(
-                    # PhoneNumber="+178149249",
-                    Message="ALERT! "+ pName +" seen.."
-                )
-        print("[MSG] Text sent...")
+        faceURL = "https://facedetective-2020.s3-us-west-2.amazonaws.com/lastFace.jpg"
+
+        uploaded = self.upload_to_aws("./output/lastFace.jpg", "facedetective-2020", "lastFace.jpg")
+        if uploaded:
+            client = boto3.client(
+                        "sns",
+                        aws_access_key_id=self.ACCESS_KEY,
+                        aws_secret_access_key=self.SECRET_KEY,
+                        region_name="us-east-1"
+                    )
+            client.publish(
+                        PhoneNumber="+17814924960",
+                        # PhoneNumber="+61432848561",
+                        Message="ALERT! "+ pName +" seen.. "+ faceURL
+                    )
+            print("[MSG] Text sent...")
+
+    def upload_to_aws(self, local_file, bucket, s3_file):
+        s3 = boto3.client('s3', aws_access_key_id= self.ACCESS_KEY,
+                          aws_secret_access_key= self.SECRET_KEY)
+
+        try:
+            s3.upload_file(local_file, bucket, s3_file)
+            print("Upload Successful")
+            return True
+        except FileNotFoundError:
+            print("The file was not found")
+            return False
+        except NoCredentialsError:
+            print("Credentials not available")
+            return False
 
     def toggelRec(self):
         if self.rec == True:
@@ -136,7 +167,50 @@ class Application:
             self.rec = True
 
     def targetUser(self):
-        pass
+        """
+            write, and close the txt file containing targets
+        """
+        if not self.nameEntry.get():        # if not True i.e empty
+            print("[INFO] Empty User Name!")
+        else:
+            f = open("./output/targets.txt", "w+")
+            f.write(self.nameEntry.get()+"\r")
+            f.close()
+            print("[INFO] target set...")
+            self.nameEntry.delete(0, 'end')
+
+
+    def targetRemove(self):
+        """
+            Read, write, and close the txt file containing targets
+        """
+        if not self.nameEntry.get():
+            print("[INFO] Empty User Name!")
+        else:
+            print("[INFO] removing target...")
+            with open("./output/targets.txt", "r") as f:
+                if f.mode == "r":
+                    lines = f.readlines()
+                    f.close()
+                    with open("./output/targets.txt", "w+") as f:
+                        for line in lines:
+                            if line.strip("\n") != self.nameEntry.get():
+                                f.write(line)
+                        print("[INFO] target removed...")
+                        f.close()
+            self.nameEntry.delete(0, 'end')
+
+    def getTargets(self):
+        """
+            Runs at the beginning of the application to get targets
+        """
+        tars = ["nuser"]
+        with open("./output/targets.txt", "r") as f:
+            if f.mode == "r":
+                lines = f.readlines()
+            for line in lines:
+                tars.append(line.strip("\n"))
+            return tars
 
     def removeUser(self):
         pass
