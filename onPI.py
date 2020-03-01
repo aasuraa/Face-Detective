@@ -101,6 +101,31 @@ class Application:
                 self.mapServoFace(x, y, w, h)
             # saving the last face every time we have a face
             self.lastFace = gray[y:y+h, x:x+w]
+        
+        if len(faces) == 0:
+            servoPIN = 22
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setwarnings(False)
+            GPIO.setup(servoPIN, GPIO.OUT)
+            p = GPIO.PWM(servoPIN, 50)
+            p.start(self.i)
+            
+            if self.horzFlag == True:
+                self.i += .4
+                p.ChangeDutyCycle(self.i)
+                time.sleep(.5)
+                if self.i > 11.0:
+                    self.horzFlag = False
+            else:
+                self.i -= .4
+                p.ChangeDutyCycle(self.i)
+                time.sleep(.5)
+                if self.i < 2.0:
+                    self.horzFlag = True
+        
+            p.stop()
+            GPIO.cleanup()
+
 
         if self.count <= 100 and self.count != 0:
             self.addUser()
@@ -124,8 +149,6 @@ class Application:
                     cv2.imwrite("./output/lastFace.jpg", self.lastFace)
                     # TODO: Track user, text is fine
                     # self.sendText(label)
-
-
                     pass
 
                 # draw the class label + probability on the output image
@@ -495,7 +518,7 @@ class Application:
                     self.iVer = self.moveServoPos(self.iVer, p)
                     time.sleep(.1)
             p.stop()
-        print("Face mapped in frame")
+        #print("Face mapped in frame")
         GPIO.cleanup()
             
 
