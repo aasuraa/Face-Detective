@@ -4,8 +4,8 @@ from datetime import datetime
 
 class Alert:
     def __init__(self):
-        self.ACCESS_KEY = 'AKIASWSXDFK6FXQSJA7P'
-        self.SECRET_KEY = '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'
+        self.ACCESS_KEY = ''
+        self.SECRET_KEY = '/'
 
     def sendText(self, pName):
         faceURL = "https://facedetective-2020.s3-us-west-2.amazonaws.com/lastFace.jpg"
