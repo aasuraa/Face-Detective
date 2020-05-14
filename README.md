@@ -47,6 +47,9 @@ o	sklearn v0.21.1 (rPi), v0.21.0 (laptop)
 o	pickle, os, boto3, datatime, threading, tkinter, PIL
 •	AWS SNS, AWS S3 bucket
 
+# File Hierarchy
+![](Images/hierarchy.png)
+
 # References
 http://www.vision.caltech.edu/html-files/EE148-2005-Spring/pprs/viola04ijcv.pdf
 https://www.hindawi.com/journals/aans/2011/673016/#B8
